@@ -1,12 +1,13 @@
 package ass2.spec;
 
+import com.jogamp.opengl.GL2;
+
 /**
  * COMMENT: Comment Tree 
  *
  * @author malcolmr
  */
 public class Tree {
-
     private double[] myPos;
     
     public Tree(double x, double y, double z) {
@@ -19,6 +20,8 @@ public class Tree {
     public double[] getPosition() {
         return myPos;
     }
-    
 
+    public void render(GL2 gl) {
+
+    }
 }

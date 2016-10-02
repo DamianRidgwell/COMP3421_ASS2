@@ -8,7 +8,6 @@ import com.jogamp.opengl.*;
 import com.jogamp.opengl.awt.GLJPanel;
 import javax.swing.JFrame;
 
-import com.jogamp.opengl.glu.GLU;
 import com.jogamp.opengl.util.FPSAnimator;
 
 import static java.awt.event.KeyEvent.*;
@@ -22,17 +21,20 @@ import static java.awt.event.KeyEvent.*;
 public class Game extends JFrame implements GLEventListener, KeyListener{
 
     private Terrain myTerrain;
-    private boolean wireframe = true;
+    private boolean wireframe = false;
     private Camera myCamera;
+    private TerrainMesh mesh;
+    private float[] sun;
 
     public Game(Terrain terrain) {
     	super("Assignment 2");
         myTerrain = terrain;
-        myCamera = new Camera(myTerrain, 60.0, 1, 40);
+        mesh = new TerrainMesh(myTerrain);
+        myCamera = new Camera(myTerrain, mesh, 60.0, 1, 40);
         double[] pos = new double[]{0, 3, -5};
         myCamera.setPosition(pos);
         myCamera.setTarget(new double[]{0, -3, 5});
-   
+        sun = myTerrain.getSunlight();
     }
     
     /** 
@@ -70,20 +72,39 @@ public class Game extends JFrame implements GLEventListener, KeyListener{
         game.run();
     }
 
-	@Override
+    @Override
 	public void display(GLAutoDrawable drawable) {
         GL2 gl = drawable.getGL().getGL2();
         gl.glMatrixMode(GL2.GL_MODELVIEW);
         gl.glLoadIdentity();
 
-
-
-
         gl.glClearColor(1,1,1,1);
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT);
+
         myCamera.update();
+
+        // enable lighting
+        enableLighting(gl);
         renderTerrain(gl);
-	}
+
+    }
+
+    private void enableLighting(GL2 gl) {
+        float[] globAmb = {0.3f, 0.3f, 0.3f, 1.0f};
+        float[] amb = {0.0f, 0.0f, 0.0f, 1.0f};
+        float[] difAndSPec = {1.0f, 1.0f, 1.0f, 1.0f};
+
+        //enable one light source
+        gl.glEnable(GL2.GL_LIGHT0);
+
+        //light0 properties
+        gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_POSITION, sun, 0);
+        gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_AMBIENT, amb, 0);
+        gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_DIFFUSE, difAndSPec, 0);
+        gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_SPECULAR, difAndSPec, 0);
+
+        gl.glLightModelfv(GL2.GL_LIGHT_MODEL_AMBIENT, globAmb, 0);  // global ambient lighting
+    }
 
     /**
      *
@@ -98,16 +119,7 @@ public class Game extends JFrame implements GLEventListener, KeyListener{
             gl.glPolygonMode(gl.GL_FRONT, gl.GL_FILL);
         }
 
-        for (int x = 0; x < dim.getWidth() - 1; x++) {
-            gl.glBegin(gl.GL_TRIANGLE_STRIP);
-                gl.glVertex3d(x, myTerrain.getGridAltitude(x, 0), 0);
-                gl.glVertex3d(x + 1, myTerrain.getGridAltitude(x + 1, 0), 0);
-                for (int z = 1; z < dim.getHeight(); z++) {
-                    gl.glVertex3d(x + 1, myTerrain.getGridAltitude(x + 1, z), z);
-                    gl.glVertex3d(x, myTerrain.getGridAltitude(x, z), z);
-                }
-            gl.glEnd();
-        }
+        mesh.renderMesh(gl);
         gl.glPolygonMode(GL2.GL_FRONT_AND_BACK, GL2.GL_FILL);
     }
 
@@ -122,11 +134,11 @@ public class Game extends JFrame implements GLEventListener, KeyListener{
         GL2 gl = drawable.getGL().getGL2();
         gl.glEnable(GL2.GL_DEPTH_TEST);
 
-        // enable lighting
-        //gl.glEnable(GL2.GL_LIGHTING);
-        //gl.glEnable(GL2.GL_LIGHT0);
+        gl.glEnable(GL2.GL_CULL_FACE);
+        gl.glCullFace(GL2.GL_BACK);
 
-        //gl.glEnable(GL2.GL_NORMALIZE);
+        gl.glEnable(GL2.GL_LIGHTING);
+        gl.glEnable(GL2.GL_NORMALIZE);
 		
 	}
 
@@ -163,4 +175,75 @@ public class Game extends JFrame implements GLEventListener, KeyListener{
     public void keyReleased(KeyEvent e) {
 
     }
+
+    public static double vectorLength(double[] v) {
+        double sum = 0.0;
+        for (int i = 0; i < v.length; i++) {
+            sum += v[i] * v[i];
+        }
+        return Math.sqrt(sum);
+    }
+
+    public static double[] normaliseVector(double[] v) {
+        double length = vectorLength(v);
+        for (int i = 0; i < v.length; i++) {
+            v[i] /= length;
+        }
+        return v;
+    }
+
+    public static double lerp(double x, double x1, double x2, double y1, double y2) {
+        return ((x2 - x)/(x2 - x1) * y1) + ((x - x1)/(x2 - x1) * y2);
+    }
+
+    public static double vectorLength(double d1, double d2) {
+        return Math.sqrt(d1*d1 + d2*d2);
+    }
+
+    public static boolean isInsideTri(double px, double pz, double ax, double az, double bx, double bz, double cx, double cz) {
+        double[] w = bccCoords(px, pz, ax, az, bx, bz, cx, cz);
+        double u = w[0];
+        double v = w[1];
+
+        // Check if point is in triangle include points on the line of the triangle
+        return (u >= 0) && (v >= 0) && (u + v <= 1);
+    }
+
+    public static Double vecDot(double[] v0, double[] v1) {
+        if (v0.length != v1.length) {
+            return null;
+        }
+        Double sum = 0.0;
+        for (int i = 0; i < v0.length; i++) {
+            sum += v0[i] * v1[i];
+        }
+        return sum;
+    }
+
+    //given three points defining a triange and an arbitrary point, calculate u and v such that
+    //u * v0 + v* v1 = P where v0 and v1 are two sides of the triangle.
+    public static double[] bccCoords(double px, double pz, double ax, double az, double bx, double bz, double cx, double cz) {
+        // Compute vectors
+        // v0 = C - A
+        double[] v0 = {cx - ax, cz - az};
+        // v1 = B - A
+        double[] v1 = {bx - ax, bz - az};
+        // v2 = P - A
+        double[] v2 = {px - ax, pz - az};
+
+        // Compute dot products
+        double dot00 = vecDot(v0, v0);
+        double dot01 = vecDot(v0, v1);
+        double dot02 = vecDot(v0, v2);
+        double dot11 = vecDot(v1, v1);
+        double dot12 = vecDot(v1, v2);
+
+        // Compute barycentric coordinates
+        double invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
+        double u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+        double v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+
+        return new double[]{u, v};
+    }
+
 }

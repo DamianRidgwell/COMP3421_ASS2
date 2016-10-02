@@ -119,11 +119,22 @@ public class Terrain {
      * @return
      */
     public double altitude(double x, double z) {
-        double altitude = 0;
+        if (x < 0 || z < 0 || x > mySize.width - 1 || z > mySize.height - 1) {
+            return 0;
+        }
 
-        
-        
-        return altitude;
+        double x1, x2, z1, z2;
+        x1 = Math.floor(x);
+        x2 = Math.ceil(x);
+        z1 = Math.floor(z);
+        z2 = Math.ceil(z);
+
+        // lerp in the x direction
+        double lerp1 = Game.lerp(x, x1, x2, getGridAltitude((int)x1, (int)z1), getGridAltitude((int)x2, (int)z1));
+        double lerp2 = Game.lerp(x, x1, x2, getGridAltitude((int)x1, (int)z2), getGridAltitude((int)x2, (int)z2));
+
+        double bilerp = Game.lerp(z, z1, z2, lerp1, lerp2);
+        return bilerp;
     }
 
     /**
@@ -149,30 +160,6 @@ public class Terrain {
     public void addRoad(double width, double[] spine) {
         Road road = new Road(width, spine);
         myRoads.add(road);        
-    }
-
-
-    public double getTrueAltitude(double x, double z) {
-        if (x < 0 || z < 0 || x > mySize.width - 1 || z > mySize.height - 1) {
-            return 0;
-        }
-
-        double x1, x2, z1, z2;
-        x1 = Math.floor(x);
-        x2 = Math.ceil(x);
-        z1 = Math.floor(z);
-        z2 = Math.ceil(z);
-
-        // lerp in the x direction
-        double lerp1 = lerp(x, x1, x2, getGridAltitude((int)x1, (int)z1), getGridAltitude((int)x2, (int)z1));
-        double lerp2 = lerp(x, x1, x2, getGridAltitude((int)x1, (int)z2), getGridAltitude((int)x2, (int)z2));
-
-        double bilerp = lerp(z, z1, z2, lerp1, lerp2);
-        return bilerp;
-    }
-
-    public double lerp(double x, double x1, double x2, double y1, double y2) {
-        return ((x2 - x)/(x2 - x1) * y1) + ((x - x1)/(x2 - x1) * y2);
     }
 
 
