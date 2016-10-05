@@ -1,6 +1,6 @@
 package ass2.tests;
 import junit.framework.*;
-import ass2.spec.TerrainMesh;
+import ass2.spec.Terrain;
 import org.junit.Test;
 
 /**
@@ -15,7 +15,7 @@ public class TerrainMeshTest extends TestCase {
         double[] p1 = {1.0, 1.0, 0.0};
         double[] p2 = {1.0, 1.0, 1.0};
 
-        double y = TerrainMesh.calcTriangleY(0.5, 0.5, p0, p1, p2);
+        double y = Terrain.calcTriangleY(0.5, 0.5, p0, p1, p2);
         assertEquals(0.5, y, EPSILON);
     }
 
@@ -25,7 +25,7 @@ public class TerrainMeshTest extends TestCase {
         double[] p1 = {-1.0, 1.0, 0.0};
         double[] p2 = {2.0, 0.0, 3.0};
 
-        double y = TerrainMesh.calcTriangleY(0.8, 0.8, p0, p1, p2);
+        double y = Terrain.calcTriangleY(0.8, 0.8, p0, p1, p2);
         System.out.println(y);
         assertEquals(1.066666, y, EPSILON);
     }
@@ -36,7 +36,7 @@ public class TerrainMeshTest extends TestCase {
         double[] p1 = {0.0, -2.0, 0.0};
         double[] p2 = {1.0, -1.0, 2.0};
 
-        double y = TerrainMesh.calcTriangleY(0.0, 1.0, p0, p1, p2);
+        double y = Terrain.calcTriangleY(0.0, 1.0, p0, p1, p2);
         assertEquals(-2.2, y, EPSILON);
     }
 
@@ -46,7 +46,7 @@ public class TerrainMeshTest extends TestCase {
         double[] p1 = {0.0, -2.0, 0.0};
         double[] p2 = {1.0, -1.0, 2.0};
 
-        double y = TerrainMesh.calcTriangleY(1.5, 0.5, p0, p1, p2);
+        double y = Terrain.calcTriangleY(1.5, 0.5, p0, p1, p2);
         assertEquals(0.0, y, EPSILON);
     }
 }

@@ -27,7 +27,6 @@ public class Game extends JFrame implements GLEventListener, KeyListener {
     private Vector<Tree> myTrees;
     private boolean wireframe = false;
     private Camera myCamera;
-    private TerrainMesh mesh;
     private float[] sun;
     private double mouseX, mouseY;
 
