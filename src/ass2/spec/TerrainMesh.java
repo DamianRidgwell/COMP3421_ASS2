@@ -9,18 +9,13 @@ import java.util.Vector;
 /**
  * Created by Administrator on 9/27/2016.
  */
-public class TerrainMesh {
+public class TerrainMesh extends Mesh {
     private Dimension mySize;
-    private Vector<double[]> vertList;
-    private Vector<double[]> normList;
-    private Vector<Face> faceList;
 
     public TerrainMesh(Terrain theTerrain) {
+        super();
         mySize = theTerrain.size();
-        //create all the vertices in an array and store an index for each vertex to link to faces later.
-        vertList = new Vector<>();
-        normList = new Vector<>();
-        faceList = new Vector<>();
+
         int[][] vertIndices = new int[mySize.width][mySize.height];
         int counter = 0;
         for (int x = 0; x < mySize.width; x++) {
@@ -78,7 +73,7 @@ public class TerrainMesh {
         }
     }
 
-    public void renderMesh(GL2 gl) {
+    public void render(GL2 gl) {
         float[] greenDiff = {0.2f, 0.8f, 0.2f, 1.0f};
         float[] greenAmb = {0.0f, 0.5f, 0.0f, 1.0f};
         gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, greenDiff, 0);
@@ -100,7 +95,7 @@ public class TerrainMesh {
         gl.glEnd();
     }
 
-    private double[] createVector(double[] a, double[] b) {
+    private static double[] createVector(double[] a, double[] b) {
         double[] ab = new double[3];
         ab[0] = b[0] - a[0];
         ab[1] = b[1] - a[1];
@@ -109,7 +104,7 @@ public class TerrainMesh {
         return ab;
     }
 
-    private double[] createNormal(double[] a, double[] b) {
+    private static double[] createNormal(double[] a, double[] b) {
         //AxB = (AyBz − AzBy, AzBx − AxBz, AxBy − AyBx)
         double[] normal = new double[3];
         normal[0] = a[1] * b[2] - a[2] * b[1];
@@ -137,6 +132,14 @@ public class TerrainMesh {
         double[] p1 = vertList.get(theFace.getVerts()[1]);
         double[] p2 = vertList.get(theFace.getVerts()[2]);
 
+        return calcTriangleY(x, z, p0, p1, p2);
+    }
+
+    /**
+     * Calculate the Y value of a given x,z coordinate in a 3D triangle
+     * @return
+     */
+    public static double calcTriangleY(double x, double z, double[] p0, double[] p1, double[] p2) {
         //if the face is parallel with the xz plane, then just return the y value of one of the verts
         if (p0[1] == p1[1] && p1[1] == p2[1]) {
             return p0[2];
@@ -144,8 +147,8 @@ public class TerrainMesh {
             double[] v1 = createVector(p0, p1);
             double[] v2 = createVector(p0, p2);
             double[] n = createNormal(v1, v2);
-            double d = (n[0] + n[1] + n[2]) * -1;
-            double y = (d + x * n[0] + z * n[2]) * -1 / n[1];
+            double d = (n[0] * p0[0] + n[1] * p0[1] + n[2] * p0[2]) * -1;
+            double y = (d + x * n[0] + z * n[2]) * (-1 / n[1]);
 
             return y;
         }

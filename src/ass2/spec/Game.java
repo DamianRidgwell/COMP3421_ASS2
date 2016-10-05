@@ -4,6 +4,9 @@ import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.Vector;
+
 import com.jogamp.opengl.*;
 import com.jogamp.opengl.awt.GLJPanel;
 import javax.swing.JFrame;
@@ -18,22 +21,23 @@ import static java.awt.event.KeyEvent.*;
  *
  * @author malcolmr
  */
-public class Game extends JFrame implements GLEventListener, KeyListener{
+public class Game extends JFrame implements GLEventListener, KeyListener {
 
     private Terrain myTerrain;
+    private Vector<Tree> myTrees;
     private boolean wireframe = false;
     private Camera myCamera;
     private TerrainMesh mesh;
     private float[] sun;
+    private double mouseX, mouseY;
 
     public Game(Terrain terrain) {
     	super("Assignment 2");
         myTerrain = terrain;
-        mesh = new TerrainMesh(myTerrain);
-        myCamera = new Camera(myTerrain, mesh, 60.0, 1, 40);
+        myCamera = new Camera(myTerrain, 60.0, 1, 40);
         double[] pos = new double[]{0, 3, -5};
         myCamera.setPosition(pos);
-        myCamera.setTarget(new double[]{0, -3, 5});
+        myCamera.setTarget(new double[]{0, -1, 5});
         sun = myTerrain.getSunlight();
     }
     
@@ -111,6 +115,7 @@ public class Game extends JFrame implements GLEventListener, KeyListener{
      * @param gl
      */
     private void renderTerrain(GL2 gl) {
+        gl.glPushMatrix();
         Dimension dim = myTerrain.size();
         gl.glColor4d(1, 0, 0, 1);
         if (wireframe) {
@@ -119,8 +124,9 @@ public class Game extends JFrame implements GLEventListener, KeyListener{
             gl.glPolygonMode(gl.GL_FRONT, gl.GL_FILL);
         }
 
-        mesh.renderMesh(gl);
+        myTerrain.render(gl);
         gl.glPolygonMode(GL2.GL_FRONT_AND_BACK, GL2.GL_FILL);
+        gl.glPopMatrix();
     }
 
     @Override
@@ -157,10 +163,10 @@ public class Game extends JFrame implements GLEventListener, KeyListener{
     public void keyPressed(KeyEvent e) {
         switch (e.getKeyCode()) {
             case VK_LEFT:
-                myCamera.rotateY(-0.1);
+                myCamera.rotate(0.0, 0.1, 0.0);
                 break;
             case VK_RIGHT:
-                myCamera.rotateY(0.1);
+                myCamera.rotate(0.0, -0.1, 0.0);
                 break;
             case VK_UP:
                 myCamera.forward(0.1);
@@ -246,4 +252,46 @@ public class Game extends JFrame implements GLEventListener, KeyListener{
         return new double[]{u, v};
     }
 
+    public static double[] rotateVector(double[] v, double rX, double rY, double rZ) {
+        double length = vectorLength(v);
+        if (rX != 0.0) {
+            v[1] = v[1] * Math.cos(rX) - v[2] * Math.sin(rX);
+            v[2] = v[1] * Math.sin(rX) + v[2] * Math.cos(rX);
+        }
+        if (rY != 0.0) {
+            v[0] = v[0] * Math.cos(rY) + v[2] * Math.sin(rY);
+            v[2] = v[2] * Math.cos(rY) - v[0] * Math.sin(rY);
+        }
+        if (rZ != 0.0) {
+            v[0] = v[0] * Math.cos(rZ) - v[1] * Math.sin(rZ);
+            v[1] = v[0] * Math.sin(rZ) + v[1] * Math.cos(rZ);
+        }
+
+        if (vectorLength(v) != length) {
+            v = normaliseVector(v);
+            v[0] = v[0] * length;
+            v[1] = v[1] * length;
+            v[2] = v[2] * length;
+        }
+        return v;
+    }
+
+    public static double[] createVector(double[] a, double[] b) {
+        double[] ab = new double[3];
+        ab[0] = b[0] - a[0];
+        ab[1] = b[1] - a[1];
+        ab[2] = b[2] - a[2];
+
+        return ab;
+    }
+
+    public static double[] createNormal(double[] a, double[] b) {
+        //AxB = (AyBz − AzBy, AzBx − AxBz, AxBy − AyBx)
+        double[] normal = new double[3];
+        normal[0] = a[1] * b[2] - a[2] * b[1];
+        normal[1] = a[2] * b[0] - a[0] * b[2];
+        normal[2] = a[0] * b[1] - a[1] * b[0];
+
+        return Game.normaliseVector(normal);
+    }
 }

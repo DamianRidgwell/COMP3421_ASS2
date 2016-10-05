@@ -12,19 +12,17 @@ public class Camera {
     private double[] position;
     private double[] target;
     Terrain theTerrain;
-    TerrainMesh theMesh;
 
     private Camera() {
     }
 
-    public Camera(Terrain t, TerrainMesh m, double fov, double n, double f) {
+    public Camera(Terrain t, double fov, double n, double f) {
         this.fov = fov;
         near = n;
         far = f;
         position = new double[]{0, 0, 0};
         target = new double[]{0, 0, 0};
         theTerrain = t;
-        theMesh = m;
     }
 
     public void init(GL2 gl, double width, double height) {
@@ -37,7 +35,7 @@ public class Camera {
     }
 
     public void update() {
-        double altitude = theMesh.altitude(position[0], position[2]);
+        double altitude = theTerrain.altitude(position[0], position[2]);
         GLU glu = new GLU();
         glu.gluLookAt(position[0], position[1] + altitude, position[2], position[0] + target[0], position[1] + target[1] + altitude, position[2] + target[2], 0, 1, 0);
     }
@@ -106,17 +104,6 @@ public class Camera {
         position[2] = z;
     }
 
-    public void rotateY(double r) {
-        double vLength = Game.vectorLength(target[0], target[2]);
-        target[0] = target[0] * Math.cos(r) - target[2] * Math.sin(r);
-        target[2] = target[0] * Math.sin(r) + target[2] * Math.cos(r);
-        double newVLength = Game.vectorLength(target[0], target[2]);
-        if (newVLength != vLength) {
-            target[0] = target[0] / newVLength * vLength;
-            target[2] = target[2] / newVLength * vLength;
-        }
-    }
-
     public void forward(double v) {
         double[] heading = getHeading();
         position[0] += heading[0] * v;
@@ -138,5 +125,7 @@ public class Camera {
         return heading;
     }
 
-
+    public void rotate(double rX, double rY, double rZ) {
+        target = Game.rotateVector(target, rX, rY, rZ);
+    }
 }

@@ -50,6 +50,7 @@ public class LevelIO {
             double h = jsonAltitude.getDouble(i);
             terrain.setGridAltitude(x, z, h);
         }
+        terrain.generateMesh();
 
         if (jsonTerrain.has("trees")) {
             JSONArray jsonTrees = jsonTerrain.getJSONArray("trees");
