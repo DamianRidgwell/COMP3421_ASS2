@@ -21,6 +21,9 @@ public class Terrain extends Mesh {
     private List<Road> myRoads;
     private float[] mySunlight;
 
+
+
+
     /**
      * Create a new terrain
      *
@@ -33,8 +36,6 @@ public class Terrain extends Mesh {
         myTrees = new ArrayList<Tree>();
         myRoads = new ArrayList<Road>();
         mySunlight = new float[3];
-
-
     }
 
     public void generateMesh() {
@@ -200,7 +201,7 @@ public class Terrain extends Mesh {
     public static double calcTriangleY(double x, double z, double[] p0, double[] p1, double[] p2) {
         //if the face is parallel with the xz plane, then just return the y value of one of the verts
         if (p0[1] == p1[1] && p1[1] == p2[1]) {
-            return p0[2];
+            return p0[1];
         } else {    //calculate the equation of the plane the triangle is on, then calculate y from x and z
             double[] v1 = Game.createVector(p0, p1);
             double[] v2 = Game.createVector(p0, p2);
@@ -227,6 +228,20 @@ public class Terrain extends Mesh {
         return null;
     }
 
+    private double max(double a, double b) {
+        if (a > b) {
+            return a;
+        }
+        return b;
+    }
+
+    private double min(double a, double b) {
+        if (a < b) {
+            return a;
+        }
+        return b;
+    }
+
     /**
      * Add a tree at the specified (x,z) point. 
      * The tree's y coordinate is calculated from the altitude of the terrain at that point.
@@ -248,15 +263,19 @@ public class Terrain extends Mesh {
      */
     public void addRoad(double width, double[] spine) {
         Road road = new Road(width, spine);
-        myRoads.add(road);        
+        myRoads.add(road);
+        road.generateMesh();
     }
 
     @Override
     public void render(GL2 gl) {
-        float[] greenDiff = {0.2f, 0.8f, 0.2f, 1.0f};
-        float[] greenAmb = {0.0f, 0.5f, 0.0f, 1.0f};
-        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, greenDiff, 0);
-        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, greenAmb, 0);
+        int chessboardTexID = Game.getInstance().getTexture(0);
+        gl.glBindTexture(GL2.GL_TEXTURE_2D, chessboardTexID);
+
+        float[] whiteDiff = {1.0f, 1.0f, 1.0f, 1.0f};
+        float[] whiteAmb = {0.25f, 0.25f, 0.25f, 1.0f};
+        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, whiteDiff, 0);
+        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, whiteAmb, 0);
 
         Face nextFace = null;
         Tree nextTree = null;
@@ -270,6 +289,7 @@ public class Terrain extends Mesh {
                     double[] normal = normList.get(nextFace.getNormals()[i]);
                     gl.glNormal3d(normal[0], normal[1], normal[2]);
                     double[] vertex = vertList.get(nextFace.getVerts()[i]);
+                    gl.glTexCoord2d(vertex[0] / 8, vertex[2] / 8);
                     gl.glVertex3d(vertex[0], vertex[1], vertex[2]);
                 }
             }

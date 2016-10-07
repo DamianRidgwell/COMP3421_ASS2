@@ -1,5 +1,7 @@
 package ass2.spec;
 
+import com.jogamp.opengl.GL2;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -8,10 +10,11 @@ import java.util.List;
  *
  * @author malcolmr
  */
-public class Road {
+public class Road extends Mesh {
 
     private List<Double> myPoints;
     private double myWidth;
+    private int numPoints = 10; // number of points on the curve.
     
     /** 
      * Create a new road starting at the specified point
@@ -147,4 +150,29 @@ public class Road {
     }
 
 
+    @Override
+    public void render(GL2 gl) {
+
+    }
+
+    @Override
+    public void generateMesh() {
+        //the vertices of the cross section of the road.
+        double[] v0 = {-0.5 * width(), 0.0, 0.0};
+        double[] v1 = {0.5 * width(), 0.0, 0.0};
+        double[] n0 = {0.0, 1.0, 0.0};
+
+        double tIncrement = 1.0/numPoints;
+        double[] start = controlPoint(0);
+        double[] end = controlPoint(size()*3);
+        double[] last = start;
+        double[][] transform = new double[3][3];
+
+        for (int i = 0; i < numPoints; i++) {
+            double t = i * tIncrement;
+            double[] p = point(t);
+            double[] v = {p[0] - last[0], p[1] - last[1]};
+
+        }
+    }
 }

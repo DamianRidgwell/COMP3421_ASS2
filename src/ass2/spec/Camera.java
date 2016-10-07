@@ -9,19 +9,21 @@ import com.jogamp.opengl.glu.GLU;
 public class Camera {
     private double fov = 60.0;
     private double near, far;
-    private double[] position;
-    private double[] target;
     Terrain theTerrain;
+
+    private boolean thirdPerson = true;
+
+    private GameObject target;
+    private final double[] thirdPersonOffset = {0.0, 1.5, 0.0};
 
     private Camera() {
     }
 
-    public Camera(Terrain t, double fov, double n, double f) {
+    public Camera(Terrain t, double fov, double n, double f, GameObject target) {
         this.fov = fov;
         near = n;
         far = f;
-        position = new double[]{0, 0, 0};
-        target = new double[]{0, 0, 0};
+        this.target = target;
         theTerrain = t;
     }
 
@@ -35,97 +37,42 @@ public class Camera {
     }
 
     public void update() {
-        double altitude = theTerrain.altitude(position[0], position[2]);
+        double[] at = target.getMyHeading();
+        double[] pos = new double[3];
+        double[] up = new double[]{0.0, 1.0, 0.0};
+        double[] targetPos = target.getMyPosition();
+        double altitude = Game.getInstance().getAltitude(targetPos[0], targetPos[1]);
+        pos[0] = targetPos[0];
+        pos[1] = altitude;
+        pos[2] = targetPos[1];
+        if (thirdPerson) {
+            pos[0] += thirdPersonOffset[0] - at[0] * 3.0;
+            pos[1] += thirdPersonOffset[1];
+            pos[2] += thirdPersonOffset[2] - at[1] * 3.0;
+        } else {
+            pos[1] += target.getHeight();
+        }
         GLU glu = new GLU();
-        glu.gluLookAt(position[0], position[1] + altitude, position[2], position[0] + target[0], position[1] + target[1] + altitude, position[2] + target[2], 0, 1, 0);
+        glu.gluLookAt(pos[0], pos[1], pos[2], pos[0] + at[0], pos[1], pos[2] + at[1], up[0], up[1], up[2]);
     }
 
-    public double[] getPosition() {
-        return position;
-    }
-
-    public void setPosition(double[] position) {
-        this.position = position;
-    }
-
-    public double[] getTarget() {
+    public GameObject getTarget() {
         return target;
     }
 
-    public void setTarget(double[] target) {
-        this.target = target;
-    }
-
-    public double getFov() {
-        return fov;
-    }
-
-    public void setFov(double fov) {
-        this.fov = fov;
-    }
-
-    public double getNear() {
-        return near;
-    }
-
-    public void setNear(double near) {
-        this.near = near;
-    }
-
-    public double getFar() {
-        return far;
-    }
-
-    public void setFar(double far) {
-        this.far = far;
-    }
-
-    public double getX() {
-        return position[0];
-    }
-
-    public void setX(double x) {
-        position[0] = x;
-    }
-
-    public double getY() {
-        return position[1];
-    }
-
-    public void setY(double y) {
-        position[1] = y;
-    }
-
-    public double getZ() {
-        return position[2];
-    }
-
-    public void setZ(double z) {
-        position[2] = z;
-    }
-
-    public void forward(double v) {
-        double[] heading = getHeading();
-        position[0] += heading[0] * v;
-        position[2] += heading[1] * v;
-    }
-
-    public void back(double v) {
-        double[] heading = getHeading();
-        position[0] += heading[0] * v * -1;
-        position[2] += heading[1] * v * -1;
+    public void setTarget(GameObject object) {
+        this.target = object;
     }
 
     private double[] getHeading() {
-        double[] heading = new double[]{target[0], target[2]};
-        double vLength = Game.vectorLength(heading[0], heading[1]);
-        heading[0] = heading[0] / vLength;
-        heading[1] = heading[1] / vLength;
-
-        return heading;
+        return target.getMyHeading();
     }
 
-    public void rotate(double rX, double rY, double rZ) {
-        target = Game.rotateVector(target, rX, rY, rZ);
+    public boolean isThirdPerson() {
+        return thirdPerson;
+    }
+
+    public void setThirdPerson(boolean thirdPerson) {
+        this.thirdPerson = thirdPerson;
     }
 }

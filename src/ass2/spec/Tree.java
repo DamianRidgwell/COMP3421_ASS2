@@ -21,6 +21,9 @@ public class Tree extends Mesh {
     private int leavesNormIndex = 0; // the index of the start of the leaves normals
     private int leavesFaceIndex = 0;
 
+    float[] whiteDiff = {1.0f, 1.0f, 1.0f, 1.0f};
+    float[] whiteAmb = {0.25f, 0.25f, 0.25f, 1.0f};
+
     private Vector<Face> leavesFaces;
     
     public Tree(double x, double y, double z) {
@@ -37,7 +40,7 @@ public class Tree extends Mesh {
         generateMesh();
     }
 
-    private void generateMesh() {
+    public void generateMesh() {
         generateTrunkMesh();
         generateLeavesMesh();
     }
@@ -79,8 +82,8 @@ public class Tree extends Mesh {
             Face bottomFace = new Face();
             int lastIndex = vertList.size() - 1;
             int lastIndexN = normList.size() - 1;
-            bottomFace.setVerts(new int[]{lastIndex, lastIndex-1-i, lastIndex-2-i});
-            bottomFace.setNormals(new int[]{lastIndexN, lastIndexN-1-i, lastIndexN-2-i});
+            bottomFace.setVerts(new int[]{lastIndex, lastIndex-2-i, lastIndex-1-i});
+            bottomFace.setNormals(new int[]{lastIndexN, lastIndexN-2-i, lastIndexN-1-i});
 
             faceList.add(topFace);
             faceList.add(bottomFace);
@@ -155,15 +158,13 @@ public class Tree extends Mesh {
     }
 
     private void renderTrunk(GL2 gl) {
-        float[] brownDiff = {0.64f, 0.16f, 0.16f};
-        float[] brownAmb = {0.64f, 0.16f, 0.16f};
-        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, brownDiff, 0);
-        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, brownAmb, 0);
+        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, whiteDiff, 0);
+        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, whiteAmb, 0);
 
         Face nextFace = null;
         Iterator<Face> faceIter = faceList.iterator();
         gl.glBegin(gl.GL_TRIANGLES);
-            for (int i = 0; i < leavesVertIndex; i++) {
+            for (int i = 0; i < leavesFaceIndex; i++) {
                 nextFace = faceIter.next();
                 int[] verts = nextFace.getVerts();
                 for (int j = 0; j < verts.length; j++) {
@@ -177,10 +178,8 @@ public class Tree extends Mesh {
     }
 
     private void renderLeaves(GL2 gl) {
-        float[] greenDiff = {0.2f, 0.8f, 0.2f, 1.0f};
-        float[] greenAmb = {0.0f, 0.5f, 0.0f, 1.0f};
-        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, greenDiff, 0);
-        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, greenAmb, 0);
+        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, whiteDiff, 0);
+        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, whiteAmb, 0);
 
         gl.glTranslated(0.0, trunkHeight + leavesRadius - (1 - Math.cos(Math.PI * 1 / leavesSlices)), 0.0);
 

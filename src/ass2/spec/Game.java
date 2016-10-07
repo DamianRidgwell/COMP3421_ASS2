@@ -12,6 +12,7 @@ import com.jogamp.opengl.awt.GLJPanel;
 import javax.swing.JFrame;
 
 import com.jogamp.opengl.util.FPSAnimator;
+import com.jogamp.opengl.util.awt.TextureRenderer;
 
 import static java.awt.event.KeyEvent.*;
 
@@ -27,20 +28,27 @@ public class Game extends JFrame implements GLEventListener, KeyListener {
     private Vector<Tree> myTrees;
     private boolean wireframe = false;
     private Camera myCamera;
+    private Avatar myAvatar;
     private float[] sun;
     private double mouseX, mouseY;
+    private static Game instance;
+    public static final int CHESSBOARD_TEX = 0;
 
+    private int[] myTextures;
+
+    private String chessboardImageName = "C:\\Users\\Administrator\\IdeaProjects\\COMP3421_LAB8\\Textures\\chessboard.png";
+
+    private String chessboardExtName = "png";
     public Game(Terrain terrain) {
     	super("Assignment 2");
         myTerrain = terrain;
-        myCamera = new Camera(myTerrain, 60.0, 1, 40);
-        double[] pos = new double[]{0, 3, -5};
-        myCamera.setPosition(pos);
-        myCamera.setTarget(new double[]{0, -1, 5});
+        myAvatar = new Avatar(0.0, 0.0);
+        myCamera = new Camera(myTerrain, 60.0, 0.2, 40, myAvatar);
         sun = myTerrain.getSunlight();
+        TextureRenderer chessboardTex;
     }
-    
-    /** 
+
+    /**
      * Run the game.
      *
      */
@@ -62,16 +70,17 @@ public class Game extends JFrame implements GLEventListener, KeyListener {
         setVisible(true);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
     }
-    
+
     /**
      * Load a level file and display it.
-     * 
+     *
      * @param args - The first argument is a level file in JSON format
      * @throws FileNotFoundException
      */
     public static void main(String[] args) throws FileNotFoundException {
         Terrain terrain = LevelIO.load(new File(args[0]));
         Game game = new Game(terrain);
+        setInstance(game);
         game.run();
     }
 
@@ -81,7 +90,7 @@ public class Game extends JFrame implements GLEventListener, KeyListener {
         gl.glMatrixMode(GL2.GL_MODELVIEW);
         gl.glLoadIdentity();
 
-        gl.glClearColor(1,1,1,1);
+        gl.glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT);
 
         myCamera.update();
@@ -89,13 +98,21 @@ public class Game extends JFrame implements GLEventListener, KeyListener {
         // enable lighting
         enableLighting(gl);
         renderTerrain(gl);
+        renderAvatar(gl);
 
+    }
+
+    private void renderAvatar(GL2 gl) {
+        gl.glPushMatrix();
+        myAvatar.render(gl);
+        gl.glPopMatrix();
     }
 
     private void enableLighting(GL2 gl) {
         float[] globAmb = {0.3f, 0.3f, 0.3f, 1.0f};
         float[] amb = {0.0f, 0.0f, 0.0f, 1.0f};
-        float[] difAndSPec = {1.0f, 1.0f, 1.0f, 1.0f};
+        float[] dif = {0.8f, 0.8f, 0.8f, 1.0f};
+        float[] spec = {1.0f, 1.0f, 1.0f, 1.0f};
 
         //enable one light source
         gl.glEnable(GL2.GL_LIGHT0);
@@ -103,8 +120,8 @@ public class Game extends JFrame implements GLEventListener, KeyListener {
         //light0 properties
         gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_POSITION, sun, 0);
         gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_AMBIENT, amb, 0);
-        gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_DIFFUSE, difAndSPec, 0);
-        gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_SPECULAR, difAndSPec, 0);
+        gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_DIFFUSE, dif, 0);
+        gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_SPECULAR, spec, 0);
 
         gl.glLightModelfv(GL2.GL_LIGHT_MODEL_AMBIENT, globAmb, 0);  // global ambient lighting
     }
@@ -131,7 +148,7 @@ public class Game extends JFrame implements GLEventListener, KeyListener {
     @Override
 	public void dispose(GLAutoDrawable drawable) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
@@ -144,7 +161,12 @@ public class Game extends JFrame implements GLEventListener, KeyListener {
 
         gl.glEnable(GL2.GL_LIGHTING);
         gl.glEnable(GL2.GL_NORMALIZE);
-		
+
+        gl.glEnable(GL2.GL_TEXTURE_2D);
+
+        myTextures = new int[1];
+        gl.glGenTextures(1, myTextures, 0);
+        myTextures[0] = new MyTexture(gl, chessboardImageName, chessboardExtName, true, myTextures[0]).getTextureId();
 	}
 
 	@Override
@@ -162,16 +184,16 @@ public class Game extends JFrame implements GLEventListener, KeyListener {
     public void keyPressed(KeyEvent e) {
         switch (e.getKeyCode()) {
             case VK_LEFT:
-                myCamera.rotate(0.0, 0.1, 0.0);
+                myAvatar.rotateHeading(0.1);
                 break;
             case VK_RIGHT:
-                myCamera.rotate(0.0, -0.1, 0.0);
+                myAvatar.rotateHeading(-0.1);
                 break;
             case VK_UP:
-                myCamera.forward(0.1);
+                myAvatar.forward(0.1);
                 break;
             case VK_DOWN:
-                myCamera.back(0.1);
+                myAvatar.backward(0.1);
                 break;
         }
     }
@@ -292,5 +314,21 @@ public class Game extends JFrame implements GLEventListener, KeyListener {
         normal[2] = a[0] * b[1] - a[1] * b[0];
 
         return Game.normaliseVector(normal);
+    }
+
+    public int getTexture(int id) {
+        return myTextures[id];
+    }
+
+    public static Game getInstance() {
+        return instance;
+    }
+
+    private static void setInstance(Game instance) {
+        Game.instance = instance;
+    }
+
+    public double getAltitude(double x, double z) {
+        return myTerrain.altitude(x, z);
     }
 }
