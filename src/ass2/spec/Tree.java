@@ -20,11 +20,6 @@ public class Tree extends Mesh {
     private int leavesVertIndex = 0; // the index of the start of the leaves verts
     private int leavesNormIndex = 0; // the index of the start of the leaves normals
     private int leavesFaceIndex = 0;
-
-    float[] whiteDiff = {1.0f, 1.0f, 1.0f, 1.0f};
-    float[] whiteAmb = {0.25f, 0.25f, 0.25f, 1.0f};
-
-    private Vector<Face> leavesFaces;
     
     public Tree(double x, double y, double z) {
         super();
@@ -37,10 +32,10 @@ public class Tree extends Mesh {
         trunkRadius = 0.2;
         leavesRadius = 1.0;
 
-        generateMesh();
+        generateMesh(null);
     }
 
-    public void generateMesh() {
+    public void generateMesh(GL2 gl) {
         generateTrunkMesh();
         generateLeavesMesh();
     }
@@ -146,21 +141,30 @@ public class Tree extends Mesh {
     }
 
     public void render(GL2 gl) {
-        gl.glTranslated(myPos[0], myPos[1], myPos[2]);
+        if (Game.renderTrees) {
+            gl.glPushAttrib(GL2.GL_POLYGON_BIT);
+            gl.glPushAttrib(GL2.GL_COLOR_BUFFER_BIT);
+            gl.glPushAttrib(GL2.GL_ENABLE_BIT);
+            gl.glTranslated(myPos[0], myPos[1], myPos[2]);
+            gl.glBindTexture(GL2.GL_TEXTURE_2D, Game.getInstance().getTexture(Game.STONE_TEX));
 
-        gl.glPushMatrix();
-        renderTrunk(gl);
-        gl.glPopMatrix();
+            gl.glPushMatrix();
+            renderTrunk(gl);
+            gl.glPopMatrix();
 
-        gl.glPushMatrix();
-        renderLeaves(gl);
-        gl.glPopMatrix();
+            gl.glPushMatrix();
+            renderLeaves(gl);
+            gl.glPopMatrix();
+
+            gl.glBindTexture(GL2.GL_TEXTURE_2D, 0);
+
+            gl.glPopAttrib();
+            gl.glPopAttrib();
+            gl.glPopAttrib();
+        }
     }
 
     private void renderTrunk(GL2 gl) {
-        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, whiteDiff, 0);
-        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, whiteAmb, 0);
-
         Face nextFace = null;
         Iterator<Face> faceIter = faceList.iterator();
         gl.glBegin(gl.GL_TRIANGLES);
@@ -171,6 +175,8 @@ public class Tree extends Mesh {
                     double[] normal = normList.get(nextFace.getNormals()[j]);
                     gl.glNormal3d(normal[0], normal[1], normal[2]);
                     double[] vertex = vertList.get(nextFace.getVerts()[j]);
+
+                    gl.glTexCoord2d(Math.atan2(vertex[2], vertex[0]), vertex[1]);
                     gl.glVertex3d(vertex[0], vertex[1], vertex[2]);
                 }
             }
@@ -178,9 +184,6 @@ public class Tree extends Mesh {
     }
 
     private void renderLeaves(GL2 gl) {
-        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, whiteDiff, 0);
-        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, whiteAmb, 0);
-
         gl.glTranslated(0.0, trunkHeight + leavesRadius - (1 - Math.cos(Math.PI * 1 / leavesSlices)), 0.0);
 
         Face nextFace = null;
@@ -193,6 +196,11 @@ public class Tree extends Mesh {
                 double[] normal = normList.get(nextFace.getNormals()[i]);
                 gl.glNormal3d(normal[0], normal[1], normal[2]);
                 double[] vertex = vertList.get(nextFace.getVerts()[i]);
+
+                double texX = Math.atan2(vertex[2], vertex[0]);
+                double texY = vertex[1];
+
+                gl.glTexCoord2d(texX, texY);
                 gl.glVertex3d(vertex[0], vertex[1], vertex[2]);
             }
         }

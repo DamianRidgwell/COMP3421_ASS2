@@ -4,15 +4,13 @@ import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.Vector;
 
 import com.jogamp.opengl.*;
 import com.jogamp.opengl.awt.GLJPanel;
 import javax.swing.JFrame;
 
 import com.jogamp.opengl.util.FPSAnimator;
-import com.jogamp.opengl.util.awt.TextureRenderer;
+import com.jogamp.opengl.util.gl2.GLUT;
 
 import static java.awt.event.KeyEvent.*;
 
@@ -25,27 +23,65 @@ import static java.awt.event.KeyEvent.*;
 public class Game extends JFrame implements GLEventListener, KeyListener {
 
     private Terrain myTerrain;
-    private Vector<Tree> myTrees;
-    private boolean wireframe = false;
+    public static boolean wireframeMode, renderTerrain, renderTrees, renderRoads, renderAvatar, quickTime, nightMode, movingSun;
     private Camera myCamera;
     private Avatar myAvatar;
     private float[] sun;
-    private double mouseX, mouseY;
     private static Game instance;
     public static final int CHESSBOARD_TEX = 0;
+    public static final int ASPHALT_TEX = 1;
+    public static final int JADE_TEX = 2;
+    public static final int STONE_TEX = 3;
+    public static final int MARBLE_TEX = 4;
+    private long time;
+    private long dayLength = 60 * 1000; // number of millis in a game 'day'
+    private double sunDistance = 50.0;
 
     private int[] myTextures;
 
-    private String chessboardImageName = "C:\\Users\\Administrator\\IdeaProjects\\COMP3421_LAB8\\Textures\\chessboard.png";
+    public static String workingDir = System.getProperty("user.dir");
+    public static String fileSeparator = System.getProperty("file.separator");
+    public static String vertexShaderName = "phongVertexShader.glsl";
+    public static String fragmentShaderName = "phongFragmentShader.glsl";
+    private String texturesDir = workingDir + fileSeparator + "Textures" + fileSeparator;
+    private String chessboardImageName =  texturesDir + "chessboard.png";
+    private String asphaltImageName = texturesDir + "cobbles.png";
+    private String jadeImageName = texturesDir + "jade.png";
+    private String stoneImageName = texturesDir + "stone.png";
+    private String marbleImageName = texturesDir + "marble.png";
 
-    private String chessboardExtName = "png";
+    private String textureExtName = "png";
+
+    private float[] sunsetRed = new float[] {0.4f, 0.0f, 0.0f, 1.0f};
+    private float[] sunsetOrange = new float[] {0.8f, 0.4f, 0.0f, 1.0f};
+    private float[] fullSun = new float[] {1.0f, 1.0f, 1.0f, 1.0f};
+    private double sunsetStage1Angle = Math.PI * 0.15;
+    private double sunsetStage2Angle = Math.PI * 0.05;
+
+
+
     public Game(Terrain terrain) {
     	super("Assignment 2");
+
         myTerrain = terrain;
-        myAvatar = new Avatar(0.0, 0.0);
-        myCamera = new Camera(myTerrain, 60.0, 0.2, 40, myAvatar);
+
+        //paths for shader source
+        String path = workingDir + fileSeparator + "src" + fileSeparator + "ass2" + fileSeparator + "spec" + fileSeparator;
+
+        myAvatar = new Avatar(0.0, 0.0, path + vertexShaderName, path + fragmentShaderName);
+        myCamera = new Camera(myTerrain, 60.0, 0.1, 100.0, myAvatar);
+
         sun = myTerrain.getSunlight();
-        TextureRenderer chessboardTex;
+
+        wireframeMode = false;
+        renderTerrain = renderTrees = renderRoads = renderAvatar = true;
+        quickTime = nightMode = movingSun = false;
+
+        time = System.currentTimeMillis();
+    }
+
+    public boolean isMovingSun() {
+        return movingSun;
     }
 
     /**
@@ -91,15 +127,39 @@ public class Game extends JFrame implements GLEventListener, KeyListener {
         gl.glLoadIdentity();
 
         gl.glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
+        if (nightMode && movingSun) {
+            gl.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        }
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT);
 
         myCamera.update();
 
         // enable lighting
         enableLighting(gl);
+        renderSun(gl);
+        setMaterials(gl); // sets standard materials
         renderTerrain(gl);
-        renderAvatar(gl);
+        if (myCamera.isThirdPerson()) {
+            renderAvatar(gl);
+        }
 
+    }
+
+    private void renderSun(GL2 gl) {
+        float matEmi[] = getSunColour();
+        if (nightMode && movingSun) {
+            matEmi = new float[] {0.9f, 0.9f, 1.0f, 1.0f};
+        }
+        float oldMatEmi[] = new float[4];
+        gl.glGetMaterialfv(GL2.GL_FRONT, GL2.GL_EMISSION, oldMatEmi, 0);
+        double[] pos = new double[] {sun[0] * sunDistance, sun[1] * sunDistance, sun[2] * sunDistance};
+        GLUT glut = new GLUT();
+        gl.glPushMatrix();
+        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_EMISSION, matEmi, 0);
+        gl.glTranslated(pos[0], pos[1], pos[2]);
+        glut.glutSolidSphere(1.0, 10, 10);
+        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_EMISSION, oldMatEmi, 0);
+        gl.glPopMatrix();
     }
 
     private void renderAvatar(GL2 gl) {
@@ -108,22 +168,133 @@ public class Game extends JFrame implements GLEventListener, KeyListener {
         gl.glPopMatrix();
     }
 
+    private void setMaterials(GL2 gl) {
+        // Material property vectors.
+        float matAmbAndDif2[] = {0.0f, 0.9f, 0.0f, 1.0f};
+        float matSpec[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+        float matShine[] = { 50.0f };
+
+        // Material property vectors.
+        float matDif1[] = {1.0f, 1.0f, 1.0f, 1.0f};
+        float matAmb1[] = {0.5f, 0.5f, 0.5f, 1.0f};;
+
+        // Material properties.
+        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, matDif1,0);
+        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, matAmb1,0);
+        gl.glMaterialfv(GL2.GL_BACK, GL2.GL_AMBIENT_AND_DIFFUSE, matAmbAndDif2,0);
+        gl.glMaterialfv(GL2.GL_FRONT_AND_BACK, GL2.GL_SPECULAR, matSpec,0);
+        gl.glMaterialfv(GL2.GL_FRONT_AND_BACK, GL2.GL_SHININESS, matShine,0);
+    }
+
     private void enableLighting(GL2 gl) {
-        float[] globAmb = {0.3f, 0.3f, 0.3f, 1.0f};
-        float[] amb = {0.0f, 0.0f, 0.0f, 1.0f};
-        float[] dif = {0.8f, 0.8f, 0.8f, 1.0f};
+        gl.glShadeModel(GL2.GL_SMOOTH);
+
+        float[] globAmb = {0.1f, 0.1f, 0.1f, 1.0f};
+        float[] amb = {0.1f, 0.1f, 0.1f, 1.0f};
         float[] spec = {1.0f, 1.0f, 1.0f, 1.0f};
+        float[] dif = getSunColour();
 
         //enable one light source
         gl.glEnable(GL2.GL_LIGHT0);
 
+        //update sun position
+        updateSun();
+
         //light0 properties
+        float[] sun4 = new float[4];
+        System.arraycopy(sun, 0, sun4, 0, 3);
+        sun4[3] = 0;
         gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_POSITION, sun, 0);
         gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_AMBIENT, amb, 0);
         gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_DIFFUSE, dif, 0);
         gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_SPECULAR, spec, 0);
 
         gl.glLightModelfv(GL2.GL_LIGHT_MODEL_AMBIENT, globAmb, 0);  // global ambient lighting
+
+        if (nightMode && movingSun) {
+            gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_SPECULAR, dif, 0);
+            enableTorch(gl);
+        } else {
+            gl.glDisable(GL2.GL_LIGHT1);
+        }
+    }
+
+    private void enableTorch(GL2 gl) {
+        float[] torchDif = {0.93f, 1.0f, 0.47f, 1.0f};
+        float[] torchSpec = {1.0f, 1.0f, 1.0f, 1.0f};
+        double[] heading = myAvatar.getMyHeading();
+        double[] position = myAvatar.getMyPosition();
+        float[] torchDir = {(float) heading[0], 0.0f, (float) heading[1], 1.0f};
+        float[] torchPos = {(float) position[0], (float) (getAltitude(position[0], position[1]) + (myAvatar.height / 2)), (float) position[1], 1.0f};
+
+        gl.glEnable(GL2.GL_LIGHT1);
+        gl.glLightf(GL2.GL_LIGHT1, GL2.GL_SPOT_CUTOFF, 45);
+        gl.glLightf(GL2.GL_LIGHT1, GL2.GL_SPOT_EXPONENT, 4);
+        gl.glLightfv(GL2.GL_LIGHT1, GL2.GL_SPOT_DIRECTION, torchDir, 0);
+        gl.glLightfv(GL2.GL_LIGHT1, GL2.GL_POSITION, torchPos, 0);
+        gl.glLightfv(GL2.GL_LIGHT1, GL2.GL_DIFFUSE, torchDif, 0);
+        gl.glLightfv(GL2.GL_LIGHT1, GL2.GL_SPECULAR, torchSpec, 0);
+        gl.glLightf(GL2.GL_LIGHT1, GL2.GL_LINEAR_ATTENUATION, 0.3f);
+    }
+
+    private float[] getSunColour() {
+        float[] dif = new float[4];
+        System.arraycopy(fullSun, 0, dif, 0, dif.length);
+        if (movingSun) {
+            float sunAngle = (float) Math.atan2(sun[1], sun[0]);
+            if (sunAngle < sunsetStage2Angle) {
+                sunAngle /= sunsetStage2Angle;
+                for (int i = 0; i < 3; i++) {
+                    dif[i] = sunsetRed[i] * (1.0f - sunAngle) + sunsetOrange[i] * (sunAngle);
+                }
+            } else if (sunAngle < sunsetStage1Angle) {
+                sunAngle = (float) ((sunAngle - sunsetStage2Angle) / (sunsetStage1Angle - sunsetStage2Angle));
+                for (int i = 0; i < 3; i++) {
+                    dif[i] = sunsetOrange[i] * (1.0f - sunAngle) + fullSun[i] * (sunAngle);
+                }
+            } else if (sunAngle > Math.PI - sunsetStage2Angle) {
+                sunAngle = (float) (Math.PI - sunAngle);
+                sunAngle /= sunsetStage2Angle;
+                for (int i = 0; i < 3; i++) {
+                    dif[i] = sunsetRed[i] * (1.0f - sunAngle) + sunsetOrange[i] * (sunAngle);
+                }
+            } else if (sunAngle > Math.PI - sunsetStage1Angle) {
+                sunAngle = (float) (Math.PI - sunAngle);
+                sunAngle = (float) ((sunAngle - sunsetStage2Angle) / (sunsetStage1Angle - sunsetStage2Angle));
+                for (int i = 0; i < 3; i++) {
+                    dif[i] = sunsetOrange[i] * (1.0f - sunAngle) + fullSun[i] * (sunAngle);
+                }
+            }
+
+            if (nightMode) {
+                dif = new float[] {0.1f, 0.1f, 0.2f, 1.0f};
+            }
+        }
+        return dif;
+    }
+
+    private void updateSun() {
+        long newTime = System.currentTimeMillis();
+        double delta = newTime - time;
+        time = newTime;
+
+        if (movingSun) {
+            if (quickTime) {
+                delta *= 5;
+            }
+            double dayFraction = delta / dayLength; //fraction of a day that this delta equals
+            double sunAngle = dayFraction * Math.PI;
+
+            double[] sun2 = MatrixMath.transform(MatrixMath.rotationMat3(0.0, 0.0, sunAngle), new double[]{sun[0], sun[1], sun[2]});
+            sun = new float[]{(float) sun2[0], (float) sun2[1], (float) sun2[2]};
+
+            //if sun has dropped below horizon
+            if (sun[1] < 0) {
+                nightMode = !nightMode;
+                sun[0] = 0 - sun[0];
+                sun[1] = 0 - sun[1];
+            }
+        }
     }
 
     /**
@@ -134,7 +305,7 @@ public class Game extends JFrame implements GLEventListener, KeyListener {
         gl.glPushMatrix();
         Dimension dim = myTerrain.size();
         gl.glColor4d(1, 0, 0, 1);
-        if (wireframe) {
+        if (wireframeMode) {
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE);
         } else {
             gl.glPolygonMode(gl.GL_FRONT, gl.GL_FILL);
@@ -164,9 +335,18 @@ public class Game extends JFrame implements GLEventListener, KeyListener {
 
         gl.glEnable(GL2.GL_TEXTURE_2D);
 
-        myTextures = new int[1];
-        gl.glGenTextures(1, myTextures, 0);
-        myTextures[0] = new MyTexture(gl, chessboardImageName, chessboardExtName, true, myTextures[0]).getTextureId();
+        gl.glEnable(GL2.GL_POLYGON_OFFSET_FILL);
+
+        myTextures = new int[5];
+        gl.glGenTextures(5, myTextures, 0);
+        myTextures[0] = new MyTexture(gl, chessboardImageName, textureExtName, true, myTextures[0]).getTextureId();
+        myTextures[1] = new MyTexture(gl, asphaltImageName, textureExtName, true, myTextures[1]).getTextureId();
+        myTextures[2] = new MyTexture(gl, jadeImageName, textureExtName, true, myTextures[2]).getTextureId();
+        myTextures[3] = new MyTexture(gl, stoneImageName, textureExtName, true, myTextures[3]).getTextureId();
+        myTextures[4] = new MyTexture(gl, marbleImageName, textureExtName, true, myTextures[4]).getTextureId();
+
+        myAvatar.initShader(gl);
+        VBOGameObject.generateVBO(gl);
 	}
 
 	@Override
@@ -200,7 +380,29 @@ public class Game extends JFrame implements GLEventListener, KeyListener {
 
     @Override
     public void keyReleased(KeyEvent e) {
-
+        switch (e.getKeyCode()) {
+            case VK_1:
+                renderTerrain = !renderTerrain;
+                break;
+            case VK_2:
+                renderTrees = !renderTrees;
+                break;
+            case VK_3:
+                renderAvatar = !renderAvatar;
+                break;
+            case VK_4:
+                renderRoads = !renderRoads;
+                break;
+            case VK_Q:
+                quickTime = !quickTime;
+                break;
+            case VK_SPACE:
+                myCamera.toggleMode();
+                break;
+            case VK_S:
+                movingSun = !movingSun;
+                break;
+        }
     }
 
     public static double vectorLength(double[] v) {
@@ -330,5 +532,9 @@ public class Game extends JFrame implements GLEventListener, KeyListener {
 
     public double getAltitude(double x, double z) {
         return myTerrain.altitude(x, z);
+    }
+
+    public boolean isNightMode() {
+        return nightMode;
     }
 }

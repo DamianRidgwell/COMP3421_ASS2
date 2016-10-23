@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import static ass2.spec.Game.*;
+
 
 /**
  * COMMENT: Comment HeightMap 
@@ -19,10 +21,10 @@ public class Terrain extends Mesh {
     private double[][] myAltitude;
     private List<Tree> myTrees;
     private List<Road> myRoads;
+    private List<VBOGameObject> myOthers;
     private float[] mySunlight;
 
-
-
+    public static Terrain instance;
 
     /**
      * Create a new terrain
@@ -35,10 +37,17 @@ public class Terrain extends Mesh {
         myAltitude = new double[width][depth];
         myTrees = new ArrayList<Tree>();
         myRoads = new ArrayList<Road>();
+        myOthers = new ArrayList<>();
         mySunlight = new float[3];
+
+        instance = this;
     }
 
-    public void generateMesh() {
+    public static Terrain getInstance() {
+        return instance;
+    }
+
+    public void generateMesh(GL2 gl) {
         int[][] vertIndices = new int[mySize.width][mySize.height];
         int counter = 0;
         for (int x = 0; x < mySize.width; x++) {
@@ -93,6 +102,13 @@ public class Terrain extends Mesh {
                 faceList.add(newFace);
                 //endregion
             }
+        }
+
+        Iterator<Road> iter = myRoads.iterator();
+        Road aRoad;
+        while (iter.hasNext()) {
+            aRoad = iter.next();
+            aRoad.generateMesh(null);
         }
     }
 
@@ -263,37 +279,46 @@ public class Terrain extends Mesh {
      */
     public void addRoad(double width, double[] spine) {
         Road road = new Road(width, spine);
+        road.generateMesh(null);
         myRoads.add(road);
-        road.generateMesh();
     }
 
     @Override
     public void render(GL2 gl) {
-        int chessboardTexID = Game.getInstance().getTexture(0);
-        gl.glBindTexture(GL2.GL_TEXTURE_2D, chessboardTexID);
-
-        float[] whiteDiff = {1.0f, 1.0f, 1.0f, 1.0f};
-        float[] whiteAmb = {0.25f, 0.25f, 0.25f, 1.0f};
-        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_DIFFUSE, whiteDiff, 0);
-        gl.glMaterialfv(GL2.GL_FRONT, GL2.GL_AMBIENT, whiteAmb, 0);
-
-        Face nextFace = null;
         Tree nextTree = null;
-        Iterator<Face> faceIter = faceList.iterator();
+        Road nextRoad = null;
+        VBOGameObject nextOther = null;
         Iterator<Tree> treeIter = myTrees.iterator();
-        gl.glBegin(gl.GL_TRIANGLES);
-            while (faceIter.hasNext()) {
-                nextFace = faceIter.next();
-                int[] verts = nextFace.getVerts();
-                for (int i = 0; i < verts.length; i++) {
-                    double[] normal = normList.get(nextFace.getNormals()[i]);
-                    gl.glNormal3d(normal[0], normal[1], normal[2]);
-                    double[] vertex = vertList.get(nextFace.getVerts()[i]);
-                    gl.glTexCoord2d(vertex[0] / 8, vertex[2] / 8);
-                    gl.glVertex3d(vertex[0], vertex[1], vertex[2]);
+        Iterator<Road> roadIter = myRoads.iterator();
+        Iterator<VBOGameObject> otherIter = myOthers.iterator();
+        if (Game.renderTerrain) {
+            gl.glPushAttrib(GL2.GL_POLYGON_BIT);
+            gl.glPushAttrib(GL2.GL_COLOR_BUFFER_BIT);
+            gl.glPushAttrib(GL2.GL_ENABLE_BIT);
+            int chessboardTexID = Game.getInstance().getTexture(Game.CHESSBOARD_TEX);
+            gl.glBindTexture(GL2.GL_TEXTURE_2D, chessboardTexID);
+
+            Face nextFace = null;
+            Iterator<Face> faceIter = faceList.iterator();
+            gl.glBegin(gl.GL_TRIANGLES);
+                while (faceIter.hasNext()) {
+                    nextFace = faceIter.next();
+                    int[] verts = nextFace.getVerts();
+                    for (int i = 0; i < verts.length; i++) {
+                        double[] normal = normList.get(nextFace.getNormals()[i]);
+                        gl.glNormal3d(normal[0], normal[1], normal[2]);
+                        double[] vertex = vertList.get(nextFace.getVerts()[i]);
+                        gl.glTexCoord2d(vertex[0] / 8, vertex[2] / 8);
+                        gl.glVertex3d(vertex[0], vertex[1], vertex[2]);
+                    }
                 }
-            }
-        gl.glEnd();
+            gl.glEnd();
+
+            gl.glBindTexture(GL2.GL_TEXTURE_2D, 0);
+            gl.glPopAttrib();
+            gl.glPopAttrib();
+            gl.glPopAttrib();
+        }
 
         while (treeIter.hasNext()) {
             nextTree = treeIter.next();
@@ -301,5 +326,22 @@ public class Terrain extends Mesh {
             nextTree.render(gl);
             gl.glPopMatrix();
         }
+        while (roadIter.hasNext()) {
+            nextRoad = roadIter.next();
+            gl.glPushMatrix();
+            nextRoad.render(gl);
+            gl.glPopMatrix();
+        }
+        while (otherIter.hasNext()) {
+            nextOther = otherIter.next();
+            gl.glPushMatrix();
+            nextOther.render(gl);
+            gl.glPopMatrix();
+        }
+    }
+
+    public void addOther(double x, double z) {
+        String path = workingDir + fileSeparator + "src" + fileSeparator + "ass2" + fileSeparator + "spec" + fileSeparator;
+        myOthers.add(new VBOGameObject(x, z, path + vertexShaderName, path + fragmentShaderName));
     }
 }

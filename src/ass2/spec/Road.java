@@ -3,6 +3,7 @@ package ass2.spec;
 import com.jogamp.opengl.GL2;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -11,7 +12,6 @@ import java.util.List;
  * @author malcolmr
  */
 public class Road extends Mesh {
-
     private List<Double> myPoints;
     private double myWidth;
     private int numPoints = 10; // number of points on the curve.
@@ -152,27 +152,100 @@ public class Road extends Mesh {
 
     @Override
     public void render(GL2 gl) {
+        if (Game.renderRoads) {
+            int asphaltTexID = Game.getInstance().getTexture(Game.ASPHALT_TEX);
+            gl.glBindTexture(GL2.GL_TEXTURE_2D, asphaltTexID);
 
+            gl.glPolygonOffset(-1.0f, -1.0f);
+
+            Face nextFace = null;
+            Iterator<Face> faceIter = faceList.iterator();
+            gl.glPolygonMode(GL2.GL_FRONT_AND_BACK, GL2.GL_FILL);
+            gl.glBegin(gl.GL_TRIANGLE_STRIP);
+                while (faceIter.hasNext()) {
+                    nextFace = faceIter.next();
+                    int[] verts = nextFace.getVerts();
+                    int[] norms = nextFace.getNormals();
+                    for (int j = 0; j < verts.length; j++) {
+                        double[] normal = normList.get(norms[j]);
+                        gl.glNormal3d(normal[0], normal[1], normal[2]);
+                        double[] vertex = vertList.get(nextFace.getVerts()[j]);
+                        gl.glTexCoord2d(vertex[0] / 3.0, vertex[2] / 3.0);
+                        gl.glVertex3d(vertex[0], vertex[1], vertex[2]);
+                    }
+                }
+            gl.glEnd();
+
+            gl.glPolygonOffset(0.0f, 0.0f);
+
+            gl.glBindTexture(GL2.GL_TEXTURE_2D, 0);
+        }
     }
 
     @Override
-    public void generateMesh() {
+    public void generateMesh(GL2 gl) {
         //the vertices of the cross section of the road.
-        double[] v0 = {-0.5 * width(), 0.0, 0.0};
-        double[] v1 = {0.5 * width(), 0.0, 0.0};
+        double[][] verts = {{0.0, -0.5 * width()},
+                            {0.0, 0.5 * width()}};
         double[] n0 = {0.0, 1.0, 0.0};
+        getNormList().add(n0);
 
         double tIncrement = 1.0/numPoints;
-        double[] start = controlPoint(0);
-        double[] end = controlPoint(size()*3);
-        double[] last = start;
-        double[][] transform = new double[3][3];
+        double[][] points = new double[size()*numPoints + 1][2];
+        points[0] = controlPoint(0);
+        points[size()*numPoints] = controlPoint(size()*3);
 
-        for (int i = 0; i < numPoints; i++) {
-            double t = i * tIncrement;
-            double[] p = point(t);
-            double[] v = {p[0] - last[0], p[1] - last[1]};
+        for (int i = 0; i < size(); i++) {
+            for (int j = 0; j < numPoints; j++) {
+                double t = i + j * tIncrement;
+                points[i * numPoints + j] = point(t);
+            }
+        }
 
+        double[][] vectors = new double[points.length][2]; // an array of the vectors of point[a] -> point[a+1]
+        int length = points.length - 1;
+        for (int i = 0; i < length; i++) {
+            vectors[i][0] = points[i + 1][0] - points[i][0];
+            vectors[i][1] = points[i + 1][1] - points[i][1]; // vector i = the difference between points[i+1] and points [i]
+        }
+        vectors[length] = vectors[length - 1];
+
+        double[][] matTrans = MatrixMath.identity(3);
+        double[][] matRot = MatrixMath.identity(3);
+        double[] translation = new double[2];
+        for (int i = 0; i < points.length; i++) {
+            double[] heading = new double[2];
+            if (i == 0 || i == length) { // first or last point
+                heading = vectors[i];
+            } else {
+                heading[0] = vectors[i][0] + vectors[i-1][0];
+                heading[1] = vectors[i][1] + vectors[i-1][1];
+            }
+            translation = points[i];
+
+            matTrans = MatrixMath.translationMat2(translation);
+            matRot = MatrixMath.rotationMat2(0 - Math.atan2(heading[1], heading[0]));
+
+            for (int j = 0; j < verts.length; j++) {
+                double[] vertex = MatrixMath.transform(matRot, verts[j]);
+                vertex = MatrixMath.transform(matTrans, vertex);
+                vertList.add(new double[]{vertex[0], Terrain.getInstance().altitude(points[i][0], points[i][1]), vertex[1]});
+            }
+        }
+
+        Iterator<double[]> iter = vertList.iterator();
+
+        int counter = 0;
+        double[] v0 = iter.next();
+        double[] v1 = iter.next();
+        double[] v2;
+        while (iter.hasNext()) {
+            v2 = iter.next();
+            Face face = new Face();
+            face.setNormals(new int[]{0, 0, 0});
+            face.setVerts(new int[]{counter, counter + 1, counter + 2});
+            counter++;
+            faceList.add(face);
         }
     }
 }

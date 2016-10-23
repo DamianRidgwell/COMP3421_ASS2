@@ -8,12 +8,13 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Reader;
 
+import com.jogamp.opengl.GL2;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
 /**
- * COMMENT: Comment LevelIO 
+ * COMMENT: Comment LevelIO
  *
  * @author malcolmr
  */
@@ -21,10 +22,10 @@ public class LevelIO {
 
     /**
      * Load a terrain object from a JSON file
-     * 
+     *
      * @param mapFile
      * @return
-     * @throws FileNotFoundException 
+     * @throws FileNotFoundException
      */
     public static Terrain load(File mapFile) throws FileNotFoundException {
 
@@ -41,7 +42,7 @@ public class LevelIO {
         float dy = (float)jsonSun.getDouble(1);
         float dz = (float)jsonSun.getDouble(2);
         terrain.setSunlightDir(dx, dy, dz);
-       
+
         JSONArray jsonAltitude = jsonTerrain.getJSONArray("altitude");
         for (int i = 0; i < jsonAltitude.length(); i++) {
             int x = i % width;
@@ -50,7 +51,7 @@ public class LevelIO {
             double h = jsonAltitude.getDouble(i);
             terrain.setGridAltitude(x, z, h);
         }
-        terrain.generateMesh();
+        terrain.generateMesh(null);
 
         if (jsonTerrain.has("trees")) {
             JSONArray jsonTrees = jsonTerrain.getJSONArray("trees");
@@ -75,6 +76,16 @@ public class LevelIO {
                     spine[j] = jsonSpine.getDouble(j);
                 }
                 terrain.addRoad(w, spine);
+            }
+        }
+
+        if (jsonTerrain.has("others")) {
+            JSONArray jsonOthers = jsonTerrain.getJSONArray("others");
+            for (int i = 0; i < jsonOthers.length(); i++) {
+                JSONObject jsonOther = jsonOthers.getJSONObject(i);
+                double x = jsonOther.getDouble("x");
+                double z = jsonOther.getDouble("z");
+                terrain.addOther(x, z);
             }
         }
         return terrain;

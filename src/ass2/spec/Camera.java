@@ -75,4 +75,8 @@ public class Camera {
     public void setThirdPerson(boolean thirdPerson) {
         this.thirdPerson = thirdPerson;
     }
+
+    public void toggleMode() {
+        thirdPerson = !thirdPerson;
+    }
 }

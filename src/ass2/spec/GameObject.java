@@ -1,5 +1,7 @@
 package ass2.spec;
 
+import com.jogamp.opengl.GL2;
+
 /**
  * Created by Administrator on 10/7/2016.
  */

@@ -44,5 +44,5 @@ public abstract class Mesh {
 
     public abstract void render(GL2 gl);
 
-    public abstract void generateMesh();
+    public abstract void generateMesh(GL2 gl);
 }
